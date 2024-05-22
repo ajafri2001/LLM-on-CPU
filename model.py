@@ -9,7 +9,7 @@ DB_FAISS_PATH = "vectorstore/db_faiss"
 
 # Define the custom prompt template
 custom_prompt_template = """### Instructions:
-Use the following context to answer the question. If you don't know the answer, just say so.
+You are a helpful, respectful and honest assistant. Always answer as helpfully as possible. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
 
 ### Context:
 {context}
@@ -42,7 +42,7 @@ def retrieval_qa_chain(llm, prompt, db):
 # Function to load the LLM
 def load_llm():
     llm = CTransformers(
-        model="models/llama-2-7b.ggmlv3.q8_0.bin",
+        model="models/llama-2-7b-chat.Q5_K_M.gguf",
         model_type="llama",
         max_new_tokens=1024,
         temperature=0.5,
@@ -73,14 +73,16 @@ def final_result(query):
         answer = answer.replace(token, "").strip()
 
     sources = response.get("source_documents", [])
-    if sources:
-        sources_str = "\n".join([f"- {doc.metadata['source']}, page {doc.metadata['page']}" for doc in sources])
-        answer += f"\nSources:\n{sources_str}"
+
+    # Check if the answer is meaningful
+    if "I don't know" not in answer and "I'm not sure" not in answer and "I'm not able" not in answer:
+        if sources:
+            sources_str = "\n".join([f"- {doc.metadata['source']}, page {doc.metadata['page']}" for doc in sources])
+            answer += f"\nSources:\n{sources_str}"
     else:
-        answer += "\nNo sources found"
+        answer += "\nNo relevant information found."
 
     return answer
-
 # Chainlit event to start the chat
 @cl.on_chat_start
 async def start():
@@ -95,7 +97,7 @@ async def start():
 @cl.on_message
 async def main(message: cl.Message):
     chain = cl.user_session.get("chain")
-    cb = cl.AsyncLangchainCallbackHandler(
+    cb = cl.AsyncLangchainCallbackHandler( #stream_final_answer=True
       answer_prefix_tokens=["FINAL", "ANSWER"]
     )
     cb.answer_reached = True
