@@ -3,7 +3,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter 
 
-DATA_PATH = 'data/'
+DATA_PATH = 'source_documents/'
 DB_FAISS_PATH = 'vectorstore/db_faiss'
 
 # Create vector database
