@@ -3,3 +3,4 @@ myenv/
 
 # Ignore Python bytecode files
 __pycache__/
+.chainlit/
