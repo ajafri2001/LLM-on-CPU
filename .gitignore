@@ -1,8 +1,7 @@
-# Ignore virtual environment
 myenv/
-
-# Ignore Python bytecode files
 __pycache__/
 .chainlit/
 models\llama-2-7b-chat.Q5_K_M.gguf
 models\llama-2-7b.ggmlv3.q8_0.bin
+vectorstore\db_faiss\index.faiss
+vectorstore\db_faiss\index.pkl
