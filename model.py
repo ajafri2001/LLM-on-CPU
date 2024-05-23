@@ -114,6 +114,7 @@ async def start():
 
 
 # Chainlit event to handle incoming messages
+# Chainlit event to handle incoming messages
 @cl.on_message
 async def main(message: cl.Message):
     chain = cl.user_session.get("chain")
@@ -127,9 +128,14 @@ async def main(message: cl.Message):
     end_time = time.time()  # Record the end time
     time_taken = end_time - start_time  # Calculate the time taken
 
-    answer = res["result"]
+    answer = ""  # Initialize an empty string to accumulate the answer
     sources = res.get("source_documents", [])
 
+    # Accumulate the answer from the callback
+    async for chunk in cb.iter_content():
+        answer += chunk
+
+    # Check if sources are available and append them to the answer
     if sources:
         sources_str = "\n".join(
             [
@@ -141,6 +147,8 @@ async def main(message: cl.Message):
     else:
         answer += "\nNo sources found"
 
-    answer += f"\n\nTime taken: {time_taken:.2f} seconds"  # Append the time taken to the answer
+    # Append the time taken to the answer
+    answer += f"\n\nTime taken: {time_taken:.2f} seconds"
 
+    # Send the final answer
     await cl.Message(content=answer).send()
