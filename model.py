@@ -1,3 +1,4 @@
+import time
 from langchain.prompts import PromptTemplate
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -20,13 +21,14 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
 ### Answer:
 """
 
+
 # Function to create a prompt template
 def set_custom_prompt():
     prompt = PromptTemplate(
-        template=custom_prompt_template, 
-        input_variables=["context", "question"]
+        template=custom_prompt_template, input_variables=["context", "question"]
     )
     return prompt
+
 
 # Function to create a Retrieval QA chain
 def retrieval_qa_chain(llm, prompt, db):
@@ -39,6 +41,7 @@ def retrieval_qa_chain(llm, prompt, db):
     )
     return qa_chain
 
+
 # Function to load the LLM
 def load_llm():
     llm = CTransformers(
@@ -46,8 +49,10 @@ def load_llm():
         model_type="llama",
         max_new_tokens=1024,
         temperature=0.5,
+        max_length=1024,  # Increase this value to allow for a larger context length
     )
     return llm
+
 
 # Function to initialize the QA bot
 def qa_bot():
@@ -55,11 +60,14 @@ def qa_bot():
         model_name="sentence-transformers/all-MiniLM-L6-v2",
         model_kwargs={"device": "cpu"},
     )
-    db = FAISS.load_local(DB_FAISS_PATH, embeddings, allow_dangerous_deserialization=True)
+    db = FAISS.load_local(
+        DB_FAISS_PATH, embeddings, allow_dangerous_deserialization=True
+    )
     llm = load_llm()
     qa_prompt = set_custom_prompt()
     qa = retrieval_qa_chain(llm, qa_prompt, db)
     return qa
+
 
 # Function to get the final result based on a query
 def final_result(query):
@@ -75,14 +83,25 @@ def final_result(query):
     sources = response.get("source_documents", [])
 
     # Check if the answer is meaningful
-    if "I don't know" not in answer and "I'm not sure" not in answer and "I'm not able" not in answer:
+    if (
+        "I don't know" not in answer
+        and "I'm not sure" not in answer
+        and "I'm not able" not in answer
+    ):
         if sources:
-            sources_str = "\n".join([f"- {doc.metadata['source']}, page {doc.metadata['page']}" for doc in sources])
+            sources_str = "\n".join(
+                [
+                    f"- {doc.metadata['source']}, page {doc.metadata['page']}"
+                    for doc in sources
+                ]
+            )
             answer += f"\nSources:\n{sources_str}"
     else:
         answer += "\nNo relevant information found."
 
     return answer
+
+
 # Chainlit event to start the chat
 @cl.on_chat_start
 async def start():
@@ -93,22 +112,43 @@ async def start():
     await msg.update()
     cl.user_session.set("chain", chain)
 
+
+# Chainlit event to handle incoming messages
 # Chainlit event to handle incoming messages
 @cl.on_message
 async def main(message: cl.Message):
     chain = cl.user_session.get("chain")
-    cb = cl.AsyncLangchainCallbackHandler( #stream_final_answer=True
-      answer_prefix_tokens=["FINAL", "ANSWER"]
+    cb = cl.AsyncLangchainCallbackHandler(
+        stream_final_answer=True, answer_prefix_tokens=["FINAL", "ANSWER"]
     )
     cb.answer_reached = True
+
+    start_time = time.time()  # Record the start time
     res = await chain.acall(message.content, callbacks=[cb])
-    answer = res["result"]
+    end_time = time.time()  # Record the end time
+    time_taken = end_time - start_time  # Calculate the time taken
+
+    answer = ""  # Initialize an empty string to accumulate the answer
     sources = res.get("source_documents", [])
-    
+
+    # Accumulate the answer from the callback
+    async for chunk in cb.iter_content():
+        answer += chunk
+
+    # Check if sources are available and append them to the answer
     if sources:
-        sources_str = "\n".join([f"- {doc.metadata['source']}, page {doc.metadata['page']}" for doc in sources])
+        sources_str = "\n".join(
+            [
+                f"- {doc.metadata['source']}, page {doc.metadata['page']}"
+                for doc in sources
+            ]
+        )
         answer += f"\nSources:\n{sources_str}"
     else:
         answer += "\nNo sources found"
 
+    # Append the time taken to the answer
+    answer += f"\n\nTime taken: {time_taken:.2f} seconds"
+
+    # Send the final answer
     await cl.Message(content=answer).send()
