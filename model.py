@@ -123,7 +123,7 @@ async def main(message: cl.Message):
     )
     cb.answer_reached = True
 
-    start_time = time.time()  # Record the start time
+    start_time = time.time()  # Record the start time ; Faulty will change soon
     res = await chain.acall(message.content, callbacks=[cb])
     end_time = time.time()  # Record the end time
     time_taken = end_time - start_time  # Calculate the time taken
