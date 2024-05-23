@@ -3,5 +3,5 @@ __pycache__/
 .chainlit/
 models/llama-2-7b-chat.Q5_K_M.gguf
 models/llama-2-7b.ggmlv3.q8_0.bin
-vectorstore/db_faiss\index.faiss
-vectorstore/db_faiss\index.pkl
+vectorstore/db_faiss/index.faiss
+vectorstore/db_faiss/index.pkl
