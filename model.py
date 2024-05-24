@@ -118,37 +118,13 @@ async def start():
 @cl.on_message
 async def main(message: cl.Message):
     chain = cl.user_session.get("chain")
+
     cb = cl.AsyncLangchainCallbackHandler(
         stream_final_answer=True, answer_prefix_tokens=["FINAL", "ANSWER"]
     )
-    cb.answer_reached = True
 
-    start_time = time.time()  # Record the start time ; Faulty will change soon
     res = await chain.acall(message.content, callbacks=[cb])
-    end_time = time.time()  # Record the end time
-    time_taken = end_time - start_time  # Calculate the time taken
-
-    answer = ""  # Initialize an empty string to accumulate the answer
-    sources = res.get("source_documents", [])
-
-    # Accumulate the answer from the callback
-    async for chunk in cb.iter_content():
-        answer += chunk
-
-    # Check if sources are available and append them to the answer
-    if sources:
-        sources_str = "\n".join(
-            [
-                f"- {doc.metadata['source']}, page {doc.metadata['page']}"
-                for doc in sources
-            ]
-        )
-        answer += f"\nSources:\n{sources_str}"
-    else:
-        answer += "\nNo sources found"
-
-    # Append the time taken to the answer
-    answer += f"\n\nTime taken: {time_taken:.2f} seconds"
+    answer = res["result"]
 
     # Send the final answer
     await cl.Message(content=answer).send()
