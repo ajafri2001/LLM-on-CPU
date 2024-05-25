@@ -12,7 +12,7 @@ DB_FAISS_PATH = "vectorstore/db_faiss"
 
 # Define the custom prompt template
 custom_prompt_template = """### Instructions:
-You are a helpful, respectful and honest assistant. You enjoy making conversation and sometimes use emojis for conversation. However, you refrain from it if you're answering questions. If asked a question, answer as helpfully as possible. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
+You are a helpful, respectful and honest assistant. If asked a question, answer as helpfully as possible. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
 
 ### Context:
 {context}
@@ -38,6 +38,7 @@ def retrieval_qa_chain(llm, prompt, db):
         llm=llm,
         chain_type="stuff",
         retriever=db.as_retriever(search_kwargs={"k": 2}),
+        verbose=True,
         return_source_documents=True,
         chain_type_kwargs={"prompt": prompt},
     )
@@ -100,16 +101,25 @@ async def start():
 
 # Chainlit event to handle incoming messages
 # Chainlit event to handle incoming messages
+# @cl.on_message
+# async def main(message: cl.Message):
+#     chain = cl.user_session.get("chain")
+
+#     cb = cl.AsyncLangchainCallbackHandler( stream_final_answer=True, answer_prefix_tokens=["FINAL", "ANSWER"])
+#     cb.answer_reached = True
+#     res = await chain.acall(message.content, callbacks=[cb])
+#     answer = res["result"]
+
+#     # Send the final answer
+#     await cl.Message(content=answer).send()
+
 @cl.on_message
 async def main(message: cl.Message):
-    chain = cl.user_session.get("chain")
-
+    chain = cl.user_session.get("chain") 
     cb = cl.AsyncLangchainCallbackHandler(
         stream_final_answer=True, answer_prefix_tokens=["FINAL", "ANSWER"]
     )
-    cb.answer_reached = True
+    # cb.answer_reached = True
     res = await chain.acall(message.content, callbacks=[cb])
     answer = res["result"]
-
-    # Send the final answer
-    await cl.Message(content=answer).send()
+    await cl.Message(content=answer).send()    
