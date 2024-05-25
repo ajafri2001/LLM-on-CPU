@@ -1,4 +1,6 @@
+import os
 import time
+from dotenv import load_dotenv
 from langchain.prompts import PromptTemplate
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -10,7 +12,7 @@ DB_FAISS_PATH = "vectorstore/db_faiss"
 
 # Define the custom prompt template
 custom_prompt_template = """### Instructions:
-You are a helpful, respectful and honest assistant. Always answer as helpfully as possible. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
+You are a helpful, respectful and honest assistant. You enjoy making conversation and sometimes use emojis for conversation. However, you refrain from it if you're answering questions. If asked a question, answer as helpfully as possible. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
 
 ### Context:
 {context}
@@ -44,12 +46,22 @@ def retrieval_qa_chain(llm, prompt, db):
 
 # Function to load the LLM
 def load_llm():
+    # Load environment variables from .env file
+    load_dotenv()
+
+    # Get model parameters from environment variables
+    model = os.getenv("MODEL")
+    model_type = os.getenv("MODEL_TYPE")
+    max_new_tokens = int(os.getenv("MAX_NEW_TOKENS"))
+    temperature = float(os.getenv("TEMPERATURE"))
+    max_length = int(os.getenv("MAX_LENGTH"))
+
     llm = CTransformers(
-        model="models/llama-2-7b-chat.Q5_K_M.gguf",
-        model_type="llama",
-        max_new_tokens=1024,
-        temperature=0.5,
-        max_length=1024,  # Increase this value to allow for a larger context length
+        model=model,
+        model_type=model_type,
+        max_new_tokens=max_new_tokens,
+        temperature=temperature,
+        max_length=max_length,
     )
     return llm
 
@@ -71,44 +83,17 @@ def qa_bot():
 
 # Function to get the final result based on a query
 def final_result(query):
-    qa = qa_bot()
-    response = qa({"query": query})
-    answer = response["result"]
-
-    # Remove prefix tokens from the answer
-    prefix_tokens = ["FINAL", "ANSWER"]
-    for token in prefix_tokens:
-        answer = answer.replace(token, "").strip()
-
-    sources = response.get("source_documents", [])
-
-    # Check if the answer is meaningful
-    if (
-        "I don't know" not in answer
-        and "I'm not sure" not in answer
-        and "I'm not able" not in answer
-    ):
-        if sources:
-            sources_str = "\n".join(
-                [
-                    f"- {doc.metadata['source']}, page {doc.metadata['page']}"
-                    for doc in sources
-                ]
-            )
-            answer += f"\nSources:\n{sources_str}"
-    else:
-        answer += "\nNo relevant information found."
-
-    return answer
+    qa_result = qa_bot()
+    response = qa_result({'query': query})
+    return response
 
 
 # Chainlit event to start the chat
 @cl.on_chat_start
 async def start():
     chain = qa_bot()
-    msg = cl.Message(content="Starting the bot...")
+    msg = cl.Message(content="Greetings👋! Go ahead and ask away any questions you might have about the source documents!")
     await msg.send()
-    msg.content = "Hi, Welcome to Medical Bot. What is your query?"
     await msg.update()
     cl.user_session.set("chain", chain)
 
@@ -122,7 +107,7 @@ async def main(message: cl.Message):
     cb = cl.AsyncLangchainCallbackHandler(
         stream_final_answer=True, answer_prefix_tokens=["FINAL", "ANSWER"]
     )
-
+    cb.answer_reached = True
     res = await chain.acall(message.content, callbacks=[cb])
     answer = res["result"]
 
