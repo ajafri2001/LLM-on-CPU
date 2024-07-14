@@ -1,4 +1,4 @@
-# Welcome to Quant-CPU! 🚀🤖
+# Welcome to LLM-on-CPU! 🚀🤖
 
 Hello there👋, Freely ask questions based on the source_documents which you provided! Note that it might take time depending on your setup
 
